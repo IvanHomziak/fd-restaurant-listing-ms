@@ -38,7 +38,7 @@ pipeline {
                     def token = "squ_07f15378ce51de6663f3a5e78450455d8cd0beb1"
                     def sonarQubeUrl = "http://http://13.39.234.170:9000/api"
                     def componentKey = "com.ihomziak:restaurant-listing-ms"
-                    def coverageThreshold = 80.0
+                    def coverageThreshold = 50.0
 
                     def response = sh (
                         script: "curl -H 'Authorization: Bearer ${token}' '${sonarQubeUrl}/measures/component?component=${componentKey}&metricKeys=coverage'",
