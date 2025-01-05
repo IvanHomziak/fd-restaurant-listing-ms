@@ -67,7 +67,8 @@ pipeline {
 
                     // Parse the JSON response
                     def parsedJson = readJSON text: response
-                    def coverageValue = parsedJson.component.measures[0].value as Double
+                    def coverageValueStr = parsedJson.component.measures[0].value
+                    def coverageValue = coverageValueStr.toDouble() // Explicitly parse as Double
 
                     echo "Code Coverage: ${coverageValue}%"
 
@@ -78,6 +79,7 @@ pipeline {
                 }
             }
         }
+
 
         stage('Docker Build and Push') {
             when {
