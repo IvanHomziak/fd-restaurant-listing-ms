@@ -1,39 +1,39 @@
-
 pipeline {
-  agent any
+    agent any
 
-  environment {
-    DOCKERHUB_CREDENTIALS = credentials('DOCKER_HUB_CREDENTIAL')
-    VERSION = "${env.BUILD_ID}"
+    environment {
+        DOCKERHUB_CREDENTIALS = credentials('DOCKER_HUB_CREDENTIAL')
+        VERSION = "${env.BUILD_ID}"
+    }
 
-  }
+    tools {
+        maven "Maven"
+    }
 
-  tools {
-    maven "Maven"
-  }
-
-  stages {
-
-    stage('Maven Build'){
-        steps{
-        sh 'mvn clean package -DskipTests'
+    stages {
+        stage('Maven Build') {
+            steps {
+                sh 'mvn clean package -DskipTests'
+            }
         }
-    }
 
-     stage('Run Tests') {
-      steps {
-        sh 'mvn test'
-      }
-    }
+        stage('Run Tests') {
+            steps {
+                sh 'mvn test'
+            }
+        }
 
-    stage('SonarQube Analysis') {
-  steps {
-    sh 'mvn clean org.jacoco:jacoco-maven-plugin:prepare-agent install sonar:sonar -Dsonar.host.url=http://13.39.234.170:9000/ -Dsonar.login=squ_07f15378ce51de6663f3a5e78450455d8cd0beb1'
-  }
-}
+        stage('SonarQube Analysis') {
+            steps {
+                sh """
+                    mvn clean org.jacoco:jacoco-maven-plugin:prepare-agent install sonar:sonar \
+                    -Dsonar.host.url=http://13.39.234.170:9000/ \
+                    -Dsonar.login=squ_07f15378ce51de6663f3a5e78450455d8cd0beb1
+                """
+            }
+        }
 
-
-   stage('Check code coverage') {
+        stage('Check code coverage') {
             steps {
                 script {
                     def token = "squ_07f15378ce51de6663f3a5e78450455d8cd0beb1"
@@ -60,51 +60,37 @@ pipeline {
             }
         }
 
-      stage('Debug Credentials') {
-          steps {
-              script {
-                  echo "DOCKERHUB_CREDENTIALS_USR: ${DOCKERHUB_CREDENTIALS_USR}"
-                  echo "DOCKERHUB_CREDENTIALS_PSW: [hidden]"
-              }
-          }
-      }
-
-      stage('Docker Build and Push') {
-      steps {
-          sh 'echo $DOCKERHUB_CREDENTIALS_PSW | docker login -u $DOCKERHUB_CREDENTIALS_USR --password-stdin'
-          sh 'docker build -t ihomziak/restaurant-listing-ms:${VERSION} .'
-          sh 'docker push ihomziak/restaurant-listing-ms:${VERSION}'
-      }
-    }
-
-
-     stage('Cleanup Workspace') {
-      steps {
-        deleteDir()
-
-      }
-    }
-
-
-
-    stage('Update Image Tag in GitOps') {
-      steps {
-         checkout scmGit(branches: [[name: '*/master']], extensions: [], userRemoteConfigs: [[ credentialsId: 'git-ssh', url: 'git@github.com:IvanHomziak/fd-deployment.git']])
-        script {
-       sh '''
-          sed -i "s/image:.*/image: ihomziak\\/restaurant-listing-ms:${VERSION}/" aws/restaurant-manifest.yml
-        '''
-          sh 'git checkout master'
-          sh 'git add .'
-          sh 'git commit -m "Update image tag"'
-        sshagent(['git-ssh'])
-            {
-                  sh('git push')
+        stage('Docker Build and Push') {
+            steps {
+                sh """
+                    echo ${DOCKERHUB_CREDENTIALS_PSW} | docker login -u ${DOCKERHUB_CREDENTIALS_USR} --password-stdin
+                    docker build -t ihomziak/restaurant-listing-ms:${VERSION} .
+                    docker push ihomziak/restaurant-listing-ms:${VERSION}
+                """
             }
         }
-      }
+
+        stage('Cleanup Workspace') {
+            steps {
+                deleteDir()
+            }
+        }
+
+        stage('Update Image Tag in GitOps') {
+            steps {
+                checkout scmGit(branches: [[name: '*/master']], extensions: [], userRemoteConfigs: [[ credentialsId: 'git-ssh', url: 'git@github.com:IvanHomziak/fd-deployment.git']])
+                script {
+                    sh """
+                        sed -i.bak "s|image:.*|image: ihomziak/restaurant-listing-ms:${VERSION}|" aws/restaurant-manifest.yml
+                        git checkout master
+                        git add .
+                        git commit -m "Update image tag"
+                    """
+                    sshagent(['git-ssh']) {
+                        sh 'git push'
+                    }
+                }
+            }
+        }
     }
-
-  }
-
 }
