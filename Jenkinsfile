@@ -153,7 +153,7 @@ pipeline {
                                 git commit -m "Update image tag to ${version}"
                             """
                             sshagent(['git-ssh-2']) {
-                                sh 'git push main'
+                                sh 'git push'
                             }
                         }
                     }
