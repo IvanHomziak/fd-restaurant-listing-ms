@@ -1,101 +1,127 @@
 pipeline {
-  agent any
+    agent any
 
-  environment {
-    DOCKERHUB_CREDENTIALS = credentials('DOCKER_HUB_CREDENTIAL')
-    VERSION = "${env.BUILD_ID}"
+    environment {
+        DOCKERHUB_CREDENTIALS = credentials('DOCKER_HUB_CREDENTIAL')
+        SONAR_TOKEN = 'squ_07f15378ce51de6663f3a5e78450455d8cd0beb1'
+        SONAR_HOST_URL = 'http://13.39.234.170:9000'
+        COMPONENT_KEY = 'com.ihomziak:restaurant-listing-ms'
+        COVERAGE_THRESHOLD = 50.0
+        VERSION = "${env.BUILD_ID}"
+    }
 
-  }
+    tools {
+        maven "Maven"
+    }
 
-  tools {
-    maven "Maven"
-  }
+    stages {
 
-  stages {
-
-    stage('Maven Build'){
-        steps{
-        sh 'mvn clean package  -DskipTests'
+        stage('Maven Build') {
+            steps {
+                echo 'Building the application...'
+                sh 'mvn clean package -DskipTests'
+            }
         }
-    }
 
-     stage('Run Tests') {
-      steps {
-        sh 'mvn test'
-      }
-    }
+        stage('Run Tests') {
+            steps {
+                echo 'Running tests...'
+                sh 'mvn test'
+            }
+        }
 
-    stage('SonarQube Analysis') {
-  steps {
-    sh 'mvn clean org.jacoco:jacoco-maven-plugin:prepare-agent install sonar:sonar -Dsonar.host.url=http://13.39.234.170:9000/ -Dsonar.login=squ_32789bcdadb6e4337e432d6cbc100c2a1a14fde5'
-  }
-}
+        stage('SonarQube Analysis') {
+            steps {
+                echo 'Running SonarQube analysis...'
+                sh """
+                    mvn clean org.jacoco:jacoco-maven-plugin:prepare-agent install sonar:sonar \
+                        -Dsonar.host.url=${SONAR_HOST_URL} \
+                        -Dsonar.login=${SONAR_TOKEN}
+                """
+            }
+        }
 
-
-   stage('Check code coverage') {
+        stage('Check Code Coverage') {
             steps {
                 script {
-                    def token = "squ_07f15378ce51de6663f3a5e78450455d8cd0beb1"
-                    def sonarQubeUrl = "http://13.39.234.170:9000/api"
-                    def componentKey = "com.ihomziak:restaurant-listing-ms"
-                    def coverageThreshold = 50.0
-
-                    def response = sh (
-                        script: "curl -H 'Authorization: Bearer ${token}' '${sonarQubeUrl}/measures/component?component=${componentKey}&metricKeys=coverage'",
+                    echo 'Fetching code coverage from SonarQube...'
+                    def response = sh(
+                        script: """
+                            curl -s -H 'Authorization: Bearer ${SONAR_TOKEN}' \
+                            '${SONAR_HOST_URL}/api/measures/component?component=${COMPONENT_KEY}&metricKeys=coverage'
+                        """,
                         returnStdout: true
                     ).trim()
 
-                    def coverage = sh (
+                    def coverage = sh(
                         script: "echo '${response}' | jq -r '.component.measures[0].value'",
                         returnStdout: true
                     ).trim().toDouble()
 
-                    echo "Coverage: ${coverage}"
+                    echo "Code Coverage: ${coverage}%"
 
-                    if (coverage < coverageThreshold) {
-                        error "Coverage is below the threshold of ${coverageThreshold}%. Aborting the pipeline."
+                    if (coverage < COVERAGE_THRESHOLD) {
+                        error "Code coverage is below the threshold of ${COVERAGE_THRESHOLD}%. Aborting pipeline."
                     }
                 }
             }
         }
 
-
-      stage('Docker Build and Push') {
-      steps {
-          sh 'echo $DOCKERHUB_CREDENTIALS_PSW | docker login -u $DOCKERHUB_CREDENTIALS_USR --password-stdin'
-          sh 'docker build -t ihomziak/restaurant-listing-ms:${VERSION} .'
-          sh 'docker push ihomziak/restaurant-listing-ms:${VERSION}'
-      }
-    }
-
-
-     stage('Cleanup Workspace') {
-      steps {
-        deleteDir()
-
-      }
-    }
-
-
-
-    stage('Update Image Tag in GitOps') {
-      steps {
-         checkout scmGit(branches: [[name: '*/master']], extensions: [], userRemoteConfigs: [[ credentialsId: 'git-ssh', url: 'git@github.com:IvanHomziak/fd-deployment.git']])
-        script {
-       sh '''
-          sed -i "s/image:.*/image: ihomziak\\/restaurant-listing-ms:${VERSION}/" aws/restaurant-manifest.yml
-        '''
-          sh 'git checkout master'
-          sh 'git add .'
-          sh 'git commit -m "Update image tag"'
-        sshagent(['git-ssh'])
-            {
-                  sh('git push')
+        stage('Docker Build and Push') {
+            steps {
+                echo 'Building and pushing Docker image...'
+                script {
+                    sh """
+                        echo ${DOCKERHUB_CREDENTIALS_PSW} | docker login -u ${DOCKERHUB_CREDENTIALS_USR} --password-stdin
+                        docker build -t ihomziak/restaurant-listing-ms:${VERSION} .
+                        docker push ihomziak/restaurant-listing-ms:${VERSION}
+                    """
+                }
             }
         }
-      }
+
+        stage('Cleanup Workspace') {
+            steps {
+                echo 'Cleaning up workspace...'
+                deleteDir()
+            }
+        }
+
+        stage('Update Image Tag in GitOps') {
+            steps {
+                echo 'Updating image tag in GitOps repository...'
+                checkout scmGit(
+                    branches: [[name: '*/master']],
+                    extensions: [],
+                    userRemoteConfigs: [[
+                        credentialsId: 'git-ssh',
+                        url: 'git@github.com:IvanHomziak/fd-deployment.git'
+                    ]]
+                )
+                script {
+                    sh """
+                        sed -i "s|image:.*|image: ihomziak/restaurant-listing-ms:${VERSION}|" aws/restaurant-manifest.yml
+                        git add .
+                        git commit -m "Update image tag to ${VERSION}"
+                    """
+                    sshagent(['git-ssh']) {
+                        sh 'git push origin master'
+                    }
+                }
+            }
+        }
+
     }
 
-  }
-
+    post {
+        always {
+            echo 'Pipeline execution complete.'
+        }
+        success {
+            echo 'Pipeline executed successfully!'
+        }
+        failure {
+            echo 'Pipeline failed. Please check the logs for details.'
+        }
+    }
 }
