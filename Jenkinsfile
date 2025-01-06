@@ -54,27 +54,31 @@ pipeline {
                     ).trim()
 
                     try {
-                        // Extract coverage value directly using Groovy's JsonSlurper
+                        // Parse JSON response
                         def jsonSlurper = new groovy.json.JsonSlurper()
                         def parsedResponse = jsonSlurper.parseText(response)
-                        def coverage = parsedResponse?.component?.measures?.find { it.metric == 'coverage' }?.value?.toDouble()
+
+                        // Extract the coverage value
+                        def coverage = parsedResponse?.component?.measures?.find { it.metric == 'coverage' }?.value
+                        if (coverage == null) {
+                            error "Coverage value is missing in the SonarQube response. Response: ${response}"
+                        }
+
+                        // Convert to double
+                        coverage = coverage.toDouble()
 
                         echo "Code Coverage: ${coverage}%"
 
-                        if (coverage == null) {
-                            error "Failed to fetch coverage value from SonarQube response."
-                        }
-
+                        // Check against the threshold
                         if (coverage < COVERAGE_THRESHOLD) {
                             error "Code coverage is below the threshold of ${COVERAGE_THRESHOLD}%. Aborting pipeline."
                         }
                     } catch (Exception e) {
-                        error "Failed to parse code coverage: ${e.message}. Response: ${response}"
+                        error "Failed to parse or validate code coverage: ${e.message}. Response: ${response}"
                     }
                 }
             }
         }
-
 
         stage('Docker Build and Push') {
             steps {
