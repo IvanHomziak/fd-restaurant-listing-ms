@@ -136,7 +136,7 @@ pipeline {
                      checkout scmGit(branches: [[name: '*/master']], extensions: [], userRemoteConfigs: [[ credentialsId: 'git-ssh', url: 'git@github.com:IvanHomziak/fd-deployment.git']])
                     script {
                    sh '''
-                      sed -i "s/image:.*/image: ihomziak\\/restaurant-listing-service:${VERSION}/" aws/restaurant-manifest.yml
+                      sed -i "s/image:.*/image: ihomziak\\/restaurant-listing-ms:${VERSION}/" aws/restaurant-manifest.yml
                     '''
                       sh 'git checkout master'
                       sh 'git add .'
