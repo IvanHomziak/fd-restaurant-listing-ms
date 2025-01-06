@@ -132,23 +132,33 @@ pipeline {
 //             }
 
             stage('Update Image Tag in GitOps') {
-                  steps {
-                     checkout scmGit(branches: [[name: '*/master']], extensions: [], userRemoteConfigs: [[ credentialsId: 'git-ssh', url: 'git@github.com:IvanHomziak/fd-deployment.git']])
-                    script {
-                   sh '''
-                      sed -i "s/image:.*/image: ihomziak\\/restaurant-listing-ms:${VERSION}/" aws/restaurant-manifest.yml
-                    '''
-                      sh 'git checkout master'
-                      sh 'git add .'
-                      sh 'git commit -m "Update image tag"'
-                    sshagent(['git-ssh'])
-                        {
-                              sh('git push')
+                steps {
+                    echo 'Updating image tag in GitOps repository...'
+                    retry(3) {
+                        script {
+                            checkout scmGit(
+                                branches: [[name: '*/main']],
+                                extensions: [],
+                                userRemoteConfigs: [[
+                                    credentialsId: 'git-ssh',
+                                    url: 'git@github.com:IvanHomziak/fd-deployment.git'
+                                ]]
+                            )
+                            def version = env.VERSION
+                            sh """
+                                sed -i "s|image:.*|image: ihomziak/restaurant-listing-ms:${version}|" aws/restaurant-manifest.yml
+                                git config user.name "IvanHomziak"
+                                git config user.email "ivan.homziak@gmail.com"
+                                git add aws/restaurant-manifest.yml
+                                git commit -m "Update image tag to ${version}"
+                            """
+                            sshagent(['git-ssh']) {
+                                sh 'git push origin main'
+                            }
                         }
                     }
-                  }
                 }
-
+            }
     }
 
     post {
