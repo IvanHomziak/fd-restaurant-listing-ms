@@ -55,7 +55,7 @@ pipeline {
                     try {
                         def jsonSlurper = new groovy.json.JsonSlurper()
                         def parsedResponse = jsonSlurper.parseText(response)
-                        def coverage = parsedResponse?.component?.measures?.find { it.metric == 'coverage' }?.value?
+                        def coverage = parsedResponse?.component?.measures?.find { it.metric == 'coverage' }?.value
 
                         if (coverage == null) {
                             error "Coverage value is missing in the SonarQube response. Response: ${response}"
