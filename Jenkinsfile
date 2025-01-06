@@ -15,7 +15,6 @@ pipeline {
     }
 
     stages {
-
         stage('Maven Build') {
             steps {
                 echo 'Building the application...'
@@ -54,19 +53,16 @@ pipeline {
                     ).trim()
 
                     try {
-                        // Parse JSON response
                         def jsonSlurper = new groovy.json.JsonSlurper()
                         def parsedResponse = jsonSlurper.parseText(response)
+                        def coverage = parsedResponse?.component?.measures?.find { it.metric == 'coverage' }?.value?
 
-                        // Extract the coverage value
-                        def coverage = parsedResponse?.component?.measures?.find { it.metric == 'coverage' }?.value
                         if (coverage == null) {
                             error "Coverage value is missing in the SonarQube response. Response: ${response}"
                         }
 
                         echo "Code Coverage: ${coverage}%"
 
-                        // Check against the threshold
                         if (coverage < COVERAGE_THRESHOLD) {
                             error "Code coverage is below the threshold of ${COVERAGE_THRESHOLD}%. Aborting pipeline."
                         }
@@ -100,17 +96,21 @@ pipeline {
         stage('Update Image Tag in GitOps') {
             steps {
                 echo 'Updating image tag in GitOps repository...'
-                checkout scmGit(
-                    branches: [[name: '*/main']], // Replace 'main' with your actual branch name
-                    extensions: [],
-                    userRemoteConfigs: [[
-                        credentialsId: 'git-ssh',
-                        url: 'git@github.com:IvanHomziak/fd-deployment.git'
-                    ]]
-                )
+                retry(3) {
+                    script {
+                        checkout scmGit(
+                            branches: [[name: '*/main']],
+                            extensions: [],
+                            userRemoteConfigs: [[
+                                credentialsId: 'git-ssh',
+                                url: 'git@github.com:IvanHomziak/fd-deployment.git'
+                            ]]
+                        )
+                    }
+                }
                 script {
                     sh """
-                        git checkout main
+                        git checkout main || git checkout -b main
                         if [ ! -f aws/restaurant-manifest.yml ]; then
                             echo "Manifest file not found!"
                             exit 1
