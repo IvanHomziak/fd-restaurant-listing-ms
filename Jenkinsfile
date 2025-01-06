@@ -65,7 +65,7 @@ pipeline {
                         }
 
                         // Convert to double
-                        coverage = coverage.parse.double
+//                         coverage = coverage.parse.double
 
                         echo "Code Coverage: ${coverage}%"
 
