@@ -63,7 +63,7 @@ pipeline {
 
                         echo "Code Coverage: ${coverage}%"
 
-                        if (coverage.toFloat() < COVERAGE_THRESHOLD) {
+                        if (coverage < COVERAGE_THRESHOLD) {
                             error "Code coverage is below the threshold of ${COVERAGE_THRESHOLD}%. Aborting pipeline."
                         }
                     } catch (Exception e) {
