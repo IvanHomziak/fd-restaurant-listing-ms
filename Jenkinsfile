@@ -54,12 +54,16 @@ pipeline {
                     ).trim()
 
                     try {
-                        def coverage = sh(
-                            script: "echo '${response}' | jq -r '.component.measures[0].value'",
-                            returnStdout: true
-                        ).trim().toDouble()
+                        // Extract coverage value directly using Groovy's JsonSlurper
+                        def jsonSlurper = new groovy.json.JsonSlurper()
+                        def parsedResponse = jsonSlurper.parseText(response)
+                        def coverage = parsedResponse?.component?.measures?.find { it.metric == 'coverage' }?.value?.toDouble()
 
                         echo "Code Coverage: ${coverage}%"
+
+                        if (coverage == null) {
+                            error "Failed to fetch coverage value from SonarQube response."
+                        }
 
                         if (coverage < COVERAGE_THRESHOLD) {
                             error "Code coverage is below the threshold of ${COVERAGE_THRESHOLD}%. Aborting pipeline."
@@ -70,6 +74,7 @@ pipeline {
                 }
             }
         }
+
 
         stage('Docker Build and Push') {
             steps {
