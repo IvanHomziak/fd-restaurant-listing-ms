@@ -149,6 +149,7 @@ pipeline {
                                 sed -i "s|image:.*|image: ihomziak/restaurant-listing-ms:${version}|" aws/restaurant-manifest.yml
                                 git config user.name "IvanHomziak"
                                 git config user.email "ivan.homziak@gmail.com"
+                                git checkout -b main
                                 git add aws/restaurant-manifest.yml
                                 git commit -m "Update image tag to ${version}"
                             """
