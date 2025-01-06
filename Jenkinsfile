@@ -149,11 +149,12 @@ pipeline {
                                 sed -i "s|image:.*|image: ihomziak/restaurant-listing-ms:${version}|" aws/restaurant-manifest.yml
                                 git config user.name "IvanHomziak"
                                 git config user.email "ivan.homziak@gmail.com"
+                                git checkout -b master
                                 git add aws/restaurant-manifest.yml
                                 git commit -m "Update image tag to ${version}"
                             """
                             sshagent(['git-ssh-2']) {
-                                sh 'git push'
+                                sh 'git push origin HEAD:master'
                             }
                         }
                     }
