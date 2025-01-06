@@ -101,7 +101,7 @@ pipeline {
             steps {
                 echo 'Updating image tag in GitOps repository...'
                 checkout scmGit(
-                    branches: [[name: '*/master']],
+                    branches: [[name: '*/main']], // Replace 'main' with your actual branch name
                     extensions: [],
                     userRemoteConfigs: [[
                         credentialsId: 'git-ssh',
@@ -110,16 +110,20 @@ pipeline {
                 )
                 script {
                     sh """
+                        git checkout main  // Ensure you are on the correct branch
+                        git config user.name "IvanHomziak"
+                        git config user.email "ivan.homziak@gmail.com"
                         sed -i "s|image:.*|image: ihomziak/restaurant-listing-ms:${VERSION}|" aws/restaurant-manifest.yml
                         git add .
                         git commit -m "Update image tag to ${VERSION}"
                     """
                     sshagent(['git-ssh']) {
-                        sh 'git push origin master'
+                        sh 'git push origin main' // Replace 'main' with your branch name
                     }
                 }
             }
         }
+
 
     }
 
