@@ -64,9 +64,6 @@ pipeline {
                             error "Coverage value is missing in the SonarQube response. Response: ${response}"
                         }
 
-                        // Convert to double
-//                         coverage = coverage.parse.double
-
                         echo "Code Coverage: ${coverage}%"
 
                         // Check against the threshold
