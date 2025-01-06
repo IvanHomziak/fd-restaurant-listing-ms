@@ -7,7 +7,7 @@ pipeline {
         SONAR_HOST_URL = 'http://13.39.234.170:9000'
         COMPONENT_KEY = 'com.ihomziak:restaurant-listing-ms'
         COVERAGE_THRESHOLD = 50.0
-        VERSION = "${env.BUILD_ID}"
+        VERSION = "${env.BUILD_ID}" // Dynamic versioning based on build ID
     }
 
     tools {
@@ -63,7 +63,7 @@ pipeline {
 
                         echo "Code Coverage: ${coverage}%"
 
-                        if (coverage < COVERAGE_THRESHOLD) {
+                        if (coverage.toFloat() < COVERAGE_THRESHOLD) {
                             error "Code coverage is below the threshold of ${COVERAGE_THRESHOLD}%. Aborting pipeline."
                         }
                     } catch (Exception e) {
