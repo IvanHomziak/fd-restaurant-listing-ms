@@ -140,7 +140,7 @@ pipeline {
                                 branches: [[name: '*/main']],
                                 extensions: [],
                                 userRemoteConfigs: [[
-                                    credentialsId: 'git-ssh',
+                                    credentialsId: 'git-ssh-2',
                                     url: 'git@github.com:IvanHomziak/fd-deployment.git'
                                 ]]
                             )
@@ -152,7 +152,7 @@ pipeline {
                                 git add aws/restaurant-manifest.yml
                                 git commit -m "Update image tag to ${version}"
                             """
-                            sshagent(['git-ssh']) {
+                            sshagent(['git-ssh-2']) {
                                 sh 'git push origin main'
                             }
                         }
